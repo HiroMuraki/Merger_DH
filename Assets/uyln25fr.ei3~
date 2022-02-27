@@ -1,0 +1,93 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class GameMain : MonoBehaviour {
+    struct NextTokenInformation {
+        public GameObject Token;
+        public float Radius;
+    }
+
+    public GameObject[] Tokens;
+    public GameObject[] SpecialTokens;
+    public Transform NextTokenDisplayPosition;
+    NextTokenInformation _nextToken;
+    GameObject _tokensHandler;
+
+    // Start is called before the first frame update
+    void Start() {
+        Token.TokenMatched.AddListener((t1, t2) => {
+            var centerPos = (t1.transform.position + t2.transform.position) / 2;
+            centerPos.z = 0;
+            if (t1.ID + 1 < Tokens.Length) {
+                var token = Tokens[t1.ID + 1];
+                Destroy(t1.gameObject);
+                Destroy(t2.gameObject);
+                var created = Instantiate(token, centerPos, Quaternion.identity, _tokensHandler.transform);
+                created.GetComponent<Token>().OnCreated();
+            }
+        });
+        Token.SpecicalTokenContacted.AddListener((t1, t2) => {
+            if (t2.ID == 0) {
+                print("升级");
+            }
+            else if (t2.ID == 1) {
+                print("降级");
+            }
+            else if (t2.ID == 2) {
+                print("全部缩小");
+            }
+            else if (t2.ID == 3) {
+                print("变大");
+            }
+            else if (t2.ID == 4) {
+                print("变小");
+            }
+            else if (t2.ID == 5) {
+                print("直接转换");
+            }
+        });
+        GetNextToken();
+        _tokensHandler = new GameObject("TokensHandler");
+    }
+
+    // Update is called once per frame
+    void Update() {
+        if (_nextToken.Token == null) {
+            return;
+        }
+        if (Input.GetMouseButton(0)) {
+            var pos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            // 边界检查
+            float screenWidth = 2.8f;
+            if (pos.x < -screenWidth + _nextToken.Radius) {
+                pos.x = -screenWidth + _nextToken.Radius;
+            }
+            else if (pos.x > screenWidth - _nextToken.Radius) {
+                pos.x = screenWidth - _nextToken.Radius;
+            }
+            _nextToken.Token.transform.position = new Vector3(pos.x, NextTokenDisplayPosition.position.y, 0);
+        }
+        else if (Input.GetMouseButtonUp(0)) {
+            _nextToken.Token.GetComponent<Token>().Active();
+            GetNextToken();
+        }
+    }
+    void GetNextToken() {
+        StartCoroutine(GetNextTokenHelper());
+    }
+    IEnumerator GetNextTokenHelper() {
+        _nextToken.Token = null;
+        yield return new WaitForSeconds(0.5f);
+        GameObject nextToken;
+        if (Random.Range(0, 2) == 0) {
+            nextToken = Tokens[Random.Range(0, 5)];
+        }
+        else {
+            nextToken = SpecialTokens[Random.Range(0, SpecialTokens.Length)];
+        }
+        _nextToken.Token = Instantiate(nextToken, NextTokenDisplayPosition.position, Quaternion.identity);
+        _nextToken.Radius = _nextToken.Token.transform.Find("AnimationHandler").Find("Sprite").GetComponent<SpriteRenderer>().size.x * _nextToken.Token.GetComponent<Token>().ScaleSize / 2;
+        _nextToken.Token.GetComponent<Token>().Deactive();
+    }
+}
